@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎰 네온 슬롯 머신</title>
+<style>
+body {
+    margin:0;
+    font-family:'Segoe UI',sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background:
+      radial-gradient(circle at top, #101025 0%, #05050a 70%),
+      linear-gradient(135deg, #0ff1, #f0f1);
+    color:#fff;
+}
+.game-container{
+    width:430px;
+    padding:35px 30px;
+    border-radius:24px;
+    background:rgba(15,15,35,0.85);
+    backdrop-filter: blur(12px);
+    box-shadow:
+      0 0 40px #00ffff55,
+      inset 0 0 20px #00ffff22;
+    border:2px solid #0ff;
+    text-align:center;
+}
+h1{
+    font-size:32px;
+    letter-spacing:1px;
+    color:#00ffff;
+    text-shadow:
+      0 0 10px #0ff,
+      0 0 30px #0ff,
+      0 0 60px #00ffff;
+    margin-bottom:25px;
+}
+#chips-display{
+    font-size:26px;
+    font-weight:800;
+    margin-bottom:25px;
+    color:#39ff14;
+    text-shadow:
+      0 0 10px #39ff14,
+      0 0 25px #39ff14;
+}
+.reels-container{
+    display:flex;
+    justify-content:center;
+    gap:18px;
+    margin-bottom:25px;
+}
+.reel{
+    width:95px;
+    height:105px;
+    border-radius:16px;
+    font-size:52px;
+    display:flex;
+    justify-content:center;
+    alignments:center;
+    background:
+      linear-gradient(180deg,#1a1a2e,#090918);
+    border:3px solid #00ffff;
+    box-shadow:
+      inset 0 0 20px #00ffff66,
+      0 0 30px #00ffffaa;
+    transition: transform 0.2s;
+}
+.reel:hover{ transform:translateY(-4px) scale(1.05); }
+.spinning{
+    animation:spinGlow 0.08s infinite alternate;
+}
+@keyframes spinGlow{
+    from{opacity:0.4;box-shadow:0 0 10px #0ff;}
+    to{opacity:1;box-shadow:0 0 30px #0ff;}
+}
+#message{
+    min-height:32px;
+    font-size:17px;
+    margin-bottom:20px;
+    color:#ff4cff;
+    text-shadow:
+      0 0 8px #ff4cff,
+      0 0 20px #ff4cff;
+}
+.controls{ display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:15px;}
+input{
+    width:65px;
+    padding:8px;
+    border-radius:10px;
+    font-size:18px;
+    text-align:center;
+    background:#0b0b18;
+    border:2px solid #0ff;
+    color:#0ff;
+    box-shadow: inset 0 0 8px #00ffff55;
+}
+button{
+    padding:12px 30px;
+    border-radius:12px;
+    border:none;
+    font-size:18px;
+    cursor:pointer;
+    font-weight:bold;
+    color:#fff;
+    background:
+      linear-gradient(180deg,#ff00ff,#b000b0);
+    box-shadow:
+      0 0 15px #ff00ff,
+      inset 0 0 25px #ff7bff;
+    transition:0.25s;
+}
+button:hover{
+    transform:scale(1.1);
+    box-shadow:
+      0 0 35px #ff00ff,
+      inset 0 0 40px #ff9cff;
+}
+button:disabled{ background:#444; box-shadow:none; cursor:not-allowed;}
+</style>
+</head>
+<body>
+
+<div class="game-container">
+<h1>🎰 네온 슬롯 머신</h1>
+
+<div class="controls" id="chip-input-section">
+    <span>보유 칩:</span>
+    <input type="number" id="chip-input" value="100" min="1">
+    <button id="start-button">게임 시작</button>
+</div>
+
+<div id="chips-display" style="display:none;">현재 칩: 0</div>
+
+<div class="reels-container" style="display:none;">
+    <div id="reel-0" class="reel">?</div>
+    <div id="reel-1" class="reel">?</div>
+    <div id="reel-2" class="reel">?</div>
+</div>
+
+<div id="message" style="display:none;">게임을 시작합니다!</div>
+
+<div class="controls" style="display:none;">
+    <span>베팅:</span>
+    <input type="number" id="bet-input" value="10" min="1" max="999">
+    <button id="spin-button">SPIN</button>
+</div>
+
+<button id="quit-button" style="display:none;">그만하기</button>
+</div>
+
+<!-- 🎧 사운드 -->
+<audio id="spin-sound" src="sounds/spin.mp3"></audio>
+<audio id="win-sound" src="sounds/win.mp3"></audio>
+<audio id="jackpot-sound" src="sounds/jackpot.mp3"></audio>
+<audio id="button-sound" src="sounds/button.mp3"></audio>
+
+<script>
+const PAYOUTS_3X = { "7️⃣":50,"⭐":20,"🔔":15,"🍒":5,"🍋":5 };
+const PAYOUT_2X = 2;
+const symbols_weighted = ["🍒","🔔","🍋","⭐","7️⃣","🍒","🍋","🍋","🔔","⭐"];
+
+const reels = [
+    document.getElementById("reel-0"),
+    document.getElementById("reel-1"),
+    document.getElementById("reel-2")
+];
+const chipsDisplay = document.getElementById("chips-display");
+const messageDisplay = document.getElementById("message");
+const betInput = document.getElementById("bet-input");
+const spinButton = document.getElementById("spin-button");
+const startButton = document.getElementById("start-button");
+const chipInput = document.getElementById("chip-input");
+const quitButton = document.getElementById("quit-button");
+
+const spinSound = document.getElementById("spin-sound");
+const winSound = document.getElementById("win-sound");
+const jackpotSound = document.getElementById("jackpot-sound");
+const buttonSound = document.getElementById("button-sound");
+
+let chips=0, initialChips=0, isSpinning=false;
+
+startButton.addEventListener("click",()=>{
+    buttonSound.play();
+    chips=parseInt(chipInput.value)||100;
+    initialChips=chips;
+
+    document.getElementById("chip-input-section").style.display="none";
+    chipsDisplay.style.display="block";
+    document.querySelector(".reels-container").style.display="flex";
+    document.querySelectorAll(".controls")[1].style.display="flex";
+    messageDisplay.style.display="block";
+    quitButton.style.display="inline-block";
+    updateChipsDisplay();
+    messageDisplay.textContent="게임을 시작합니다!";
+});
+
+quitButton.addEventListener("click",()=>{
+    buttonSound.play();
+    let diff=chips-initialChips;
+    let status=diff>0?`총 +${diff} 획득! 🎉`:(diff<0?`총 ${diff} 손실! 💔`:"수익/손실 없음");
+    messageDisplay.textContent=`게임 종료! 최종 칩: ${chips}. ${status}`;
+
+    document.getElementById("chip-input-section").style.display="flex";
+    chipsDisplay.style.display="none";
+    document.querySelector(".reels-container").style.display="none";
+    document.querySelectorAll(".controls")[1].style.display="none";
+    quitButton.style.display="none";
+    spinButton.disabled=false;
+    isSpinning=false;
+    chipInput.value=chips;
+});
+
+function updateChipsDisplay(){ chipsDisplay.textContent=`현재 칩: ${chips}`;}
+
+function checkWin(result, bet){
+    const counts={};
+    result.forEach(s=>counts[s]=(counts[s]||0)+1);
+    if(Object.keys(counts).length===1){
+        const s=result[0];
+        return {winAmount:bet*PAYOUTS_3X[s],message:`${s.repeat(3)} 잭팟!`};
+    }
+    if(Object.values(counts).includes(2)){
+        return {winAmount:bet*PAYOUT_2X,message:"2개 일치!"};
+    }
+    return {winAmount:0,message:"꽝!"};
+}
+
+function startSpin(){
+    if(isSpinning) return;
+    let bet=parseInt(betInput.value);
+    if(isNaN(bet)||bet<=0||bet>chips){
+        messageDisplay.textContent="베팅이 올바르지 않습니다.";
+        return;
+    }
+    chips-=bet; updateChipsDisplay();
+
+    spinSound.currentTime=0; spinSound.play();
+    isSpinning=true; spinButton.disabled=true;
+    reels.forEach(r=>r.classList.add("spinning"));
+    messageDisplay.textContent="스핀 중...";
+
+    const result=[
+        symbols_weighted[Math.random()*symbols_weighted.length|0],
+        symbols_weighted[Math.random()*symbols_weighted.length|0],
+        symbols_weighted[Math.random()*symbols_weighted.length|0]
+    ];
+
+    result.forEach((symbol,i)=>{
+        setTimeout(()=>{
+            reels[i].classList.remove("spinning");
+            reels[i].textContent=symbol;
+            if(i===2) finalize(result,bet);
+        },500*(i+1));
+    });
+}
+
+function finalize(result, bet){
+    const {winAmount,message}=checkWin(result,bet);
+    if(winAmount>0){
+        if(result[0]===result[1]&&result[1]===result[2]){
+            jackpotSound.play();
+        } else {
+            winSound.play();
+        }
+        messageDisplay.classList.add("win");
+    }
+    chips+=winAmount;
+    updateChipsDisplay();
+    messageDisplay.textContent=winAmount>0?`+${winAmount} 🎉 ${message}`:message;
+    isSpinning=false; spinButton.disabled=chips<=0;
+}
+
+spinButton.addEventListener("click",()=>{
+    buttonSound.play();
+    startSpin();
+});
+</script>
+
+</body>
+</html>
