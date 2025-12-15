@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎰 네온 슬롯 머신</title>
+<title>슬롯</title>
 <style>
 body {
     margin:0;
@@ -61,7 +61,7 @@ h1{
     font-size:52px;
     display:flex;
     justify-content:center;
-    alignments:center;
+    align-items:center;
     background:
       linear-gradient(180deg,#1a1a2e,#090918);
     border:3px solid #00ffff;
@@ -126,12 +126,11 @@ button:disabled{ background:#444; box-shadow:none; cursor:not-allowed;}
 <body>
 
 <div class="game-container">
-<h1>🎰 네온 슬롯 머신</h1>
+<h1>7️⃣7️⃣7️⃣슬롯</h1>
 
 <div class="controls" id="chip-input-section">
     <span>보유 칩:</span>
     <input type="number" id="chip-input" value="100" min="1">
-    <button id="start-button">게임 시작</button>
 </div>
 
 <div id="chips-display" style="display:none;">현재 칩: 0</div>
@@ -146,18 +145,17 @@ button:disabled{ background:#444; box-shadow:none; cursor:not-allowed;}
 
 <div class="controls" style="display:none;">
     <span>베팅:</span>
-    <input type="number" id="bet-input" value="10" min="1" max="999">
+    <input type="number" id="bet-input" value="10" min="5" max="999" step="5">
     <button id="spin-button">SPIN</button>
 </div>
 
 <button id="quit-button" style="display:none;">그만하기</button>
 </div>
 
-<!-- 🎧 사운드 -->
-<audio id="spin-sound" src="sounds/spin.mp3"></audio>
-<audio id="win-sound" src="sounds/win.mp3"></audio>
-<audio id="jackpot-sound" src="sounds/jackpot.mp3"></audio>
-<audio id="button-sound" src="sounds/button.mp3"></audio>
+<!-- 🎧 슬롯 사운드 -->
+<audio id="spin-sound" src="sound/spin.mp3"></audio>
+<audio id="win-sound" src="sound/Minor%20Win.mp3"></audio>
+<audio id="jackpot-sound" src="sound/Jackpot.mp3"></audio>
 
 <script>
 const PAYOUTS_3X = { "7️⃣":50,"⭐":20,"🔔":15,"🍒":5,"🍋":5 };
@@ -173,36 +171,45 @@ const chipsDisplay = document.getElementById("chips-display");
 const messageDisplay = document.getElementById("message");
 const betInput = document.getElementById("bet-input");
 const spinButton = document.getElementById("spin-button");
-const startButton = document.getElementById("start-button");
 const chipInput = document.getElementById("chip-input");
 const quitButton = document.getElementById("quit-button");
 
 const spinSound = document.getElementById("spin-sound");
 const winSound = document.getElementById("win-sound");
 const jackpotSound = document.getElementById("jackpot-sound");
-const buttonSound = document.getElementById("button-sound");
 
-let chips=0, initialChips=0, isSpinning=false;
+let chips=0, initialChips=0, isSpinning=false, gameStarted=false;
 
-startButton.addEventListener("click",()=>{
-    buttonSound.play();
-    chips=parseInt(chipInput.value)||100;
-    initialChips=chips;
-
-    document.getElementById("chip-input-section").style.display="none";
-    chipsDisplay.style.display="block";
-    document.querySelector(".reels-container").style.display="flex";
-    document.querySelectorAll(".controls")[1].style.display="flex";
-    messageDisplay.style.display="block";
-    quitButton.style.display="inline-block";
-    updateChipsDisplay();
-    messageDisplay.textContent="게임을 시작합니다!";
+// 새로고침 방지
+window.addEventListener("beforeunload", function(e){
+    if(gameStarted){
+        e.preventDefault();
+        e.returnValue = "";
+    }
 });
 
+// 스페이스바로 게임 시작
+window.addEventListener("keydown", (e)=>{
+    if(e.code === "Space" && !gameStarted){
+        gameStarted = true;
+        chips = parseInt(chipInput.value)||100;
+        initialChips = chips;
+
+        document.getElementById("chip-input-section").style.display="none";
+        chipsDisplay.style.display="block";
+        document.querySelector(".reels-container").style.display="flex";
+        document.querySelectorAll(".controls")[1].style.display="flex";
+        messageDisplay.style.display="block";
+        quitButton.style.display="inline-block";
+        updateChipsDisplay();
+        messageDisplay.textContent = "게임을 시작합니다!";
+    }
+});
+
+// 그만하기 버튼
 quitButton.addEventListener("click",()=>{
-    buttonSound.play();
     let diff=chips-initialChips;
-    let status=diff>0?`총 +${diff} 획득! 🎉`:(diff<0?`총 ${diff} 손실! 💔`:"수익/손실 없음");
+    let status=diff>0?`총 +${diff} 획득! 🎉`:(diff<0?`총 ${diff} 손실! `:"수익/손실 없음");
     messageDisplay.textContent=`게임 종료! 최종 칩: ${chips}. ${status}`;
 
     document.getElementById("chip-input-section").style.display="flex";
@@ -210,8 +217,8 @@ quitButton.addEventListener("click",()=>{
     document.querySelector(".reels-container").style.display="none";
     document.querySelectorAll(".controls")[1].style.display="none";
     quitButton.style.display="none";
-    spinButton.disabled=false;
     isSpinning=false;
+    gameStarted=false;
     chipInput.value=chips;
 });
 
@@ -233,8 +240,8 @@ function checkWin(result, bet){
 function startSpin(){
     if(isSpinning) return;
     let bet=parseInt(betInput.value);
-    if(isNaN(bet)||bet<=0||bet>chips){
-        messageDisplay.textContent="베팅이 올바르지 않습니다.";
+    if(isNaN(bet) || bet < 5 || bet > chips || bet % 5 !== 0){
+        messageDisplay.textContent="베팅은 최소 5칩이며, 5단위로만 가능합니다.";
         return;
     }
     chips-=bet; updateChipsDisplay();
@@ -255,7 +262,7 @@ function startSpin(){
             reels[i].classList.remove("spinning");
             reels[i].textContent=symbol;
             if(i===2) finalize(result,bet);
-        },500*(i+1));
+        }, Math.floor(4000/3*(i+1)));
     });
 }
 
@@ -267,16 +274,16 @@ function finalize(result, bet){
         } else {
             winSound.play();
         }
-        messageDisplay.classList.add("win");
     }
     chips+=winAmount;
     updateChipsDisplay();
     messageDisplay.textContent=winAmount>0?`+${winAmount} 🎉 ${message}`:message;
-    isSpinning=false; spinButton.disabled=chips<=0;
+    isSpinning=false;
+    spinButton.disabled = chips<=0;
 }
 
+// SPIN 버튼 클릭 이벤트
 spinButton.addEventListener("click",()=>{
-    buttonSound.play();
     startSpin();
 });
 </script>
